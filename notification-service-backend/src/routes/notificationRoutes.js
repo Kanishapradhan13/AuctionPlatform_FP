@@ -10,30 +10,18 @@ router.get('/', async (req, res) => {
       .from('notifications')
       .select('*');
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    const notifications = data || [];
-    
     const stats = {
-      total: notifications.length,
-      sent: notifications.filter(n => n.status === 'sent').length,
-      pending: notifications.filter(n => n.status === 'pending').length,
-      failed: notifications.filter(n => n.status === 'failed').length
+      total: data?.length || 0,
+      sent: data?.filter(n => n.status === 'sent').length || 0,
+      pending: data?.filter(n => n.status === 'pending').length || 0,
+      failed: data?.filter(n => n.status === 'failed').length || 0
     };
 
-    res.json({
-      success: true,
-      data: stats
-    });
+    res.json({ success: true, data: stats });
   } catch (error) {
-    console.error('Error fetching notification stats:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      message: 'Failed to fetch notification statistics'
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -45,6 +33,7 @@ router.post('/send', async (req, res) => {
     // Validate required fields
     if (!eventType || !userEmail || !auctionTitle) {
       return res.status(400).json({
+        success: false,
         error: 'Missing required fields: eventType, userEmail, auctionTitle'
       });
     }
@@ -55,27 +44,12 @@ router.post('/send', async (req, res) => {
       userId,
       auctionId,
       auctionTitle,
-      additionalData
+      additionalData: additionalData || {}
     });
 
-    if (result.success) {
-      res.json({
-        success: true,
-        message: result.message,
-        notificationId: result.notificationId
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: result.error,
-        message: result.message
-      });
-    }
+    res.json(result);
   } catch (error) {
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -86,24 +60,48 @@ router.get('/logs', async (req, res) => {
       .from('notifications')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(50);
 
-    if (error) {
-      throw error;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Email service status - FIXED METHOD NAME
+router.get('/email-status', (req, res) => {
+  try {
+    const status = emailService.getStatus(); // Changed from getEmailStatus() to getStatus()
+    res.json({ success: true, data: status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Test email endpoint
+router.post('/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email address is required'
+      });
     }
 
-    res.json({
-      success: true,
-      data: data || [],
-      count: data ? data.length : 0
+    const result = await emailService.sendEmail({
+      to: email,
+      subject: 'Test Email - Bhutan Auction Platform',
+      html: '<h2>Test Email</h2><p>Your email service is working!</p>',
+      text: 'Test Email - Your email service is working!'
     });
+
+    res.json(result);
   } catch (error) {
-    console.error('Error fetching notification logs:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      message: 'Failed to fetch notification logs'
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

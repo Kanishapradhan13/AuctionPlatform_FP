@@ -7,13 +7,20 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase configuration. Check SUPABASE_URL and SUPABASE_ANON_KEY environment variables.');
 }
 
-console.log('🔗 Connecting to Supabase...');
-console.log('URL:', supabaseUrl.replace(/\.co.*$/, '.co')); // Hide full URL for security
+// Only log in non-test environments
+if (process.env.NODE_ENV !== 'test') {
+  console.log('🔗 Connecting to Supabase...');
+  console.log('URL:', supabaseUrl.replace(/\.co.*$/, '.co')); // Hide full URL for security
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Test connection
+// Test connection (only in non-test environments)
 async function testConnection() {
+  if (process.env.NODE_ENV === 'test') {
+    return; // Skip connection test in test environment
+  }
+
   try {
     const { data, error } = await supabase
       .from('notifications')

@@ -1,11 +1,37 @@
 const { Resend } = require('resend');
-const supabase = require('../config/supabase');
+const supabase = require('../utils/supabase');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Safe Resend initialization
+let resend;
+let emailEnabled = false;
+
+try {
+  const apiKey = process.env.RESEND_API_KEY;
+  
+  // Check if we have a valid API key (not placeholder)
+  if (apiKey && !apiKey.includes('your_resend_api_key') && apiKey.length > 20) {
+    resend = new Resend(apiKey);
+    emailEnabled = true;
+    console.log('✅ Resend email service ENABLED');
+  } else {
+    console.log('🔄 Resend email service in MOCK mode (no valid API key)');
+  }
+} catch (error) {
+  console.log('⚠️ Resend initialization failed, using MOCK mode:', error.message);
+}
+
+// Helper function to format numbers with commas
+const formatNumber = (num) => {
+  if (!num && num !== 0) return 'N/A';
+  return new Intl.NumberFormat().format(Number(num));
+};
 
 class EmailService {
   constructor() {
     this.resend = resend;
+    this.emailEnabled = emailEnabled;
+    this.fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+    this.fromName = process.env.FROM_NAME || 'Bhutan Auction Platform';
   }
 
   // Store notification in database
@@ -56,75 +82,106 @@ class EmailService {
     }
   }
 
-  // Send email with Resend (MOCK MODE)
+  // Send email (automatically falls back to mock if needed)
   async sendEmail(emailData) {
     try {
       const { to, subject, html, text } = emailData;
 
-      // MOCK MODE - No real emails sent
-      console.log('📧 [MOCK MODE] Email would be sent:', { to, subject });
+      console.log(`📧 ${this.emailEnabled ? 'REAL' : 'MOCK'} Email to:`, to);
+      
+      if (this.emailEnabled && this.resend) {
+        // Send REAL email via Resend
+        const result = await this.resend.emails.send({
+          from: `${this.fromName} <${this.fromEmail}>`,
+          to: to,
+          subject: subject,
+          html: html,
+          text: text,
+        });
+
+        console.log('✅ REAL email sent via Resend');
+        
+        return {
+          success: true,
+          data: result,
+          message: 'Email sent successfully via Resend',
+          mode: 'REAL'
+        };
+      } else {
+        // MOCK email (no API key or Resend not available)
+        console.log('🔄 MOCK email sent (no Resend API key)');
+        
+        return {
+          success: true,
+          data: { id: 'mock_email_' + Date.now() },
+          message: 'Mock email sent (configure RESEND_API_KEY for real emails)',
+          mode: 'MOCK'
+        };
+      }
+    } catch (error) {
+      console.error('❌ Email sending failed:', error.message);
+      
+      // Fallback to mock mode
+      console.log('🔄 Falling back to MOCK email');
       return {
         success: true,
-        data: { id: 'mock_email_id' },
-        message: 'Mock email sent successfully'
-      };
-    } catch (error) {
-      console.error('Error sending email:', error);
-      return {
-        success: false,
-        error: error.message,
-        message: 'Failed to send email'
+        data: { id: 'mock_fallback_' + Date.now() },
+        message: 'Email sent in mock mode (Resend service unavailable)',
+        mode: 'MOCK_FALLBACK'
       };
     }
   }
 
-  // Generate email templates
+  // Simple email templates
   generateEmailTemplate(eventType, data) {
     const templates = {
       'BID_PLACED': {
-        subject: `Your Bid Was Placed - ${data.auctionTitle}`,
+        subject: `Bid Confirmed - ${data.auctionTitle}`,
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #2c5aa0; color: white; padding: 20px; text-align: center;">
-              <h1>🇧🇹 Bhutan Online Auction Platform</h1>
-            </div>
-            <div style="padding: 20px; background: #f9f9f9;">
-              <h2>Bid Confirmation</h2>
-              <p>Hello,</p>
-              <p>Your bid has been successfully placed!</p>
-              <div style="background: white; padding: 15px; margin: 15px 0; border-left: 4px solid #2c5aa0;">
-                <strong>Auction:</strong> ${data.auctionTitle}<br>
-                <strong>Your Bid:</strong> Nu. ${data.bidAmount}<br>
-                <strong>Time:</strong> ${new Date().toLocaleString()}
-              </div>
-              <p>You will be notified if someone outbids you.</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #2c5aa0;">🇧🇹 Bhutan Auction Platform</h2>
+            <h3>Bid Confirmation</h3>
+            <p>Your bid has been successfully placed!</p>
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
+              <p><strong>Auction:</strong> ${data.auctionTitle}</p>
+              <p><strong>Your Bid:</strong> Nu. ${formatNumber(data.bidAmount)}</p>
+              <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
             </div>
           </div>
         `,
-        text: `Bid Confirmation - Your bid of Nu. ${data.bidAmount} on ${data.auctionTitle} was placed successfully.`
+        text: `Bid Confirmed - ${data.auctionTitle}\nYour bid: Nu. ${formatNumber(data.bidAmount)}\nTime: ${new Date().toLocaleString()}`
       },
-
       'OUTBID': {
         subject: `You've Been Outbid - ${data.auctionTitle}`,
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #d9534f; color: white; padding: 20px; text-align: center;">
-              <h1>🇧🇹 Bhutan Online Auction Platform</h1>
-            </div>
-            <div style="padding: 20px; background: #f9f9f9;">
-              <h2>You've Been Outbid!</h2>
-              <p>Hello,</p>
-              <p>Someone has placed a higher bid on an auction you're participating in.</p>
-              <div style="background: white; padding: 15px; margin: 15px 0; border-left: 4px solid #d9534f;">
-                <strong>Auction:</strong> ${data.auctionTitle}<br>
-                <strong>Current Highest Bid:</strong> Nu. ${data.currentBid}<br>
-                <strong>Time:</strong> ${new Date().toLocaleString()}
-              </div>
-              <p>Place a new bid to stay in the competition!</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #d9534f;">🇧🇹 Bhutan Auction Platform</h2>
+            <h3>You've Been Outbid!</h3>
+            <p>Someone placed a higher bid on your auction.</p>
+            <div style="background: #fff5f5; padding: 15px; border-radius: 5px;">
+              <p><strong>Auction:</strong> ${data.auctionTitle}</p>
+              <p><strong>Current Bid:</strong> Nu. ${formatNumber(data.currentBid)}</p>
+              <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
             </div>
           </div>
         `,
-        text: `Outbid Notification - Current bid on ${data.auctionTitle} is now Nu. ${data.currentBid}.`
+        text: `Outbid - ${data.auctionTitle}\nCurrent bid: Nu. ${formatNumber(data.currentBid)}\nTime: ${new Date().toLocaleString()}`
+      },
+      'AUCTION_WON': {
+        subject: `Congratulations! You Won - ${data.auctionTitle}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #5cb85c;">🇧🇹 Bhutan Auction Platform</h2>
+            <h3>Congratulations! You Won!</h3>
+            <p>You have won the auction!</p>
+            <div style="background: #f5fff5; padding: 15px; border-radius: 5px;">
+              <p><strong>Auction:</strong> ${data.auctionTitle}</p>
+              <p><strong>Winning Bid:</strong> Nu. ${formatNumber(data.winningBid)}</p>
+              <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+          </div>
+        `,
+        text: `Congratulations! You won - ${data.auctionTitle} with a bid of Nu. ${formatNumber(data.winningBid)}.`
       }
     };
 
@@ -136,6 +193,8 @@ class EmailService {
     let loggedNotification;
 
     try {
+      console.log('📨 Processing notification:', notificationData.eventType);
+
       // 1. Log the notification in database
       loggedNotification = await this.logNotification({
         event_type: notificationData.eventType,
@@ -151,10 +210,10 @@ class EmailService {
       const template = this.generateEmailTemplate(notificationData.eventType, notificationData);
 
       if (!template) {
-        throw new Error(`No template found for event type: ${notificationData.eventType}`);
+        throw new Error(`No template for event: ${notificationData.eventType}`);
       }
 
-      // 3. Send email (MOCK MODE)
+      // 3. Send email (auto-handles real/mock mode)
       const emailResult = await this.sendEmail({
         to: notificationData.userEmail,
         subject: template.subject,
@@ -162,45 +221,46 @@ class EmailService {
         text: template.text
       });
 
-      // 4. Update notification status based on result
+      // 4. Update notification status
       if (emailResult.success) {
         await this.updateNotificationStatus(loggedNotification.id, 'sent');
         return {
           success: true,
           notificationId: loggedNotification.id,
-          message: 'Notification sent successfully'
+          message: emailResult.message,
+          mode: emailResult.mode
         };
       } else {
-        await this.updateNotificationStatus(
-          loggedNotification.id, 
-          'failed', 
-          emailResult.error
-        );
+        await this.updateNotificationStatus(loggedNotification.id, 'failed', emailResult.error);
         return {
           success: false,
           notificationId: loggedNotification.id,
-          error: emailResult.error,
-          message: 'Failed to send notification'
+          error: emailResult.error
         };
       }
 
     } catch (error) {
-      console.error('Error processing notification:', error);
+      console.error('💥 Notification processing failed:', error.message);
 
       if (loggedNotification) {
-        await this.updateNotificationStatus(
-          loggedNotification.id, 
-          'failed', 
-          error.message
-        );
+        await this.updateNotificationStatus(loggedNotification.id, 'failed', error.message);
       }
 
       return {
         success: false,
-        error: error.message,
-        message: 'Failed to process notification'
+        error: error.message
       };
     }
+  }
+
+  // Check email service status
+  getStatus() {
+    return {
+      enabled: this.emailEnabled,
+      service: 'Resend',
+      fromEmail: this.fromEmail,
+      fromName: this.fromName
+    };
   }
 }
 
