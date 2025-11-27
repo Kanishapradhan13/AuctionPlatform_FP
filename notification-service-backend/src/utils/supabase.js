@@ -1,38 +1,42 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// Load environment variables
+require('dotenv').config();
+
+const supabaseUrl = process.env.SUPABASE_URL || 'https://rsmfycuyltyqytsqnsnx.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbWZ5Y3V5bHR5cXl0c3Fuc254Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNzI0ODksImV4cCI6MjA3OTc0ODQ4OX0.znT8IFvk-593-2b0YKM-5uwbS4J4fbM1l_P89vMBqbg';
+
+console.log('🔧 Loading Supabase configuration...');
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase configuration. Check SUPABASE_URL and SUPABASE_ANON_KEY environment variables.');
+  console.error('❌ Missing Supabase configuration');
+  console.log('Please check your .env file for SUPABASE_URL and SUPABASE_ANON_KEY');
+  process.exit(1);
 }
 
-// Only log in non-test environments
-if (process.env.NODE_ENV !== 'test') {
-  console.log('🔗 Connecting to Supabase...');
-  console.log('URL:', supabaseUrl.replace(/\.co.*$/, '.co')); // Hide full URL for security
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Test connection (only in non-test environments)
-async function testConnection() {
-  if (process.env.NODE_ENV === 'test') {
-    return; // Skip connection test in test environment
+// Initialize Supabase client
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false
   }
+});
 
+// Test connection
+async function testConnection() {
   try {
+    console.log('🔌 Testing Supabase connection...');
     const { data, error } = await supabase
       .from('notifications')
-      .select('count', { count: 'exact', head: true });
+      .select('count')
+      .limit(1);
     
     if (error) {
-      console.log('Notifications table might not exist yet. Run database-setup.sql');
+      console.error('❌ Supabase connection failed:', error.message);
     } else {
-      console.log('Successfully connected to Supabase');
+      console.log('✅ Supabase connected successfully');
     }
-  } catch (err) {
-    console.log('Supabase connection test:', err.message);
+  } catch (error) {
+    console.error('❌ Supabase connection test failed:', error.message);
   }
 }
 

@@ -1,5 +1,7 @@
 const { Resend } = require('resend');
 const supabase = require('../utils/supabase');
+// ADDED: WebSocket import
+const websocketServer = require('../websocket/websocketServer');
 
 // Safe Resend initialization
 let resend;
@@ -188,6 +190,18 @@ class EmailService {
     return templates[eventType] || null;
   }
 
+  // ADDED: Helper method for real-time notifications
+  getNotificationMessage(eventType) {
+    const messages = {
+      'BID_PLACED': 'Your bid was placed successfully!',
+      'OUTBID': 'You have been outbid! Place a new bid to stay in the competition.',
+      'AUCTION_WON': 'Congratulations! You won the auction!',
+      'AUCTION_ENDING': 'Auction is ending soon!',
+      'NEW_BID': 'New bid placed on your auction!'
+    };
+    return messages[eventType] || 'New notification from Bhutan Auction Platform';
+  }
+
   // Main method to process notifications
   async processNotification(notificationData) {
     let loggedNotification;
@@ -205,6 +219,27 @@ class EmailService {
         additional_data: notificationData.additionalData || {},
         status: 'pending'
       });
+
+      // ✅ ADDED: REAL-TIME WEBSOCKET NOTIFICATION
+      if (notificationData.userId) {
+        try {
+          websocketServer.sendToUser(notificationData.userId, {
+            type: 'NEW_NOTIFICATION',
+            data: {
+              id: loggedNotification.id,
+              eventType: notificationData.eventType,
+              auctionTitle: notificationData.auctionTitle,
+              message: this.getNotificationMessage(notificationData.eventType),
+              timestamp: new Date().toISOString(),
+              read: false
+            }
+          });
+          console.log('📡 Real-time WebSocket notification sent to user:', notificationData.userId);
+        } catch (wsError) {
+          console.error('❌ WebSocket broadcast failed:', wsError.message);
+          // Don't fail the whole process if WebSocket fails
+        }
+      }
 
       // 2. Generate email template
       const template = this.generateEmailTemplate(notificationData.eventType, notificationData);
