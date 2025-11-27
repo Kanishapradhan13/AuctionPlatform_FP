@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import bidProcessingController from '../controllers/bidProcessing.controller';
 import realtimeController from '../controllers/realtime.controller';
+import auctionController from '../controllers/auction.controller';
+
 import {
   bidPlacementLimiter,
   historyLimiter,
@@ -8,6 +10,9 @@ import {
 } from '../middleware/rateLimiter';
 
 const router = Router();
+
+router.get('/auctions', auctionController.getActiveAuctions);
+router.get('/auctions/:auctionId', auctionController.getAuctionById);
 
 // ============================================
 // PERSON A ROUTES - Bid Processing

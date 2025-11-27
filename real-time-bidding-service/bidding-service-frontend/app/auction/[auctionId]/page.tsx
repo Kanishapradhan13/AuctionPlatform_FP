@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import axios from 'axios'
-import { TrendingUp, Clock, User, AlertCircle, CheckCircle } from 'lucide-react'
+import { Clock, User, AlertCircle, CheckCircle } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
 const supabase = createClient(
@@ -28,10 +28,32 @@ interface AuctionStats {
   average_bid: number
 }
 
+interface AuctionInfo {
+  auction_id: string
+  title: string
+  description: string
+  item_type: string
+  starting_bid: number
+  end_time: string
+}
+
+// Generate or retrieve persistent user ID
+const getUserId = () => {
+  if (typeof window === 'undefined') return ''
+  
+  let userId = localStorage.getItem('bidder_user_id')
+  if (!userId) {
+    userId = 'bidder-' + Math.random().toString(36).substr(2, 9)
+    localStorage.setItem('bidder_user_id', userId)
+  }
+  return userId
+}
+
 export default function AuctionRoom() {
   const params = useParams()
   const auctionId = params?.auctionId as string
 
+  const [auctionInfo, setAuctionInfo] = useState<AuctionInfo | null>(null)
   const [bids, setBids] = useState<Bid[]>([])
   const [stats, setStats] = useState<AuctionStats | null>(null)
   const [bidAmount, setBidAmount] = useState('')
@@ -39,29 +61,11 @@ export default function AuctionRoom() {
   const [loading, setLoading] = useState(true)
   const [bidding, setBidding] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [userId] = useState('demo-user-' + Math.random().toString(36).substr(2, 9))
-  const [timeLeft, setTimeLeft] = useState('1:00:00')
+  const [userId] = useState(getUserId())
+  const [timeLeft, setTimeLeft] = useState('Loading...')
+  const [realtimeStatus, setRealtimeStatus] = useState<string>('connecting')
   
   const channelRef = useRef<any>(null)
-
-  useEffect(() => {
-    const endTime = Date.now() + 3600000 // 1 hour from now
-    
-    const timer = setInterval(() => {
-      const remaining = endTime - Date.now()
-      if (remaining <= 0) {
-        setTimeLeft('Ended')
-        clearInterval(timer)
-      } else {
-        const hours = Math.floor(remaining / 3600000)
-        const minutes = Math.floor((remaining % 3600000) / 60000)
-        const seconds = Math.floor((remaining % 60000) / 1000)
-        setTimeLeft(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
-      }
-    }, 1000)
-    
-    return () => clearInterval(timer)
-  }, [])
 
   useEffect(() => {
     if (!auctionId) return
@@ -75,20 +79,48 @@ export default function AuctionRoom() {
     return () => {
       // Cleanup
       if (channelRef.current) {
+        console.log('Cleaning up realtime channel')
         supabase.removeChannel(channelRef.current)
       }
     }
   }, [auctionId])
 
+  useEffect(() => {
+    if (!auctionInfo) return
+
+    const updateTimer = () => {
+      const remaining = new Date(auctionInfo.end_time).getTime() - Date.now()
+      if (remaining <= 0) {
+        setTimeLeft('Ended')
+      } else {
+        const hours = Math.floor(remaining / 3600000)
+        const minutes = Math.floor((remaining % 3600000) / 60000)
+        const seconds = Math.floor((remaining % 60000) / 1000)
+        setTimeLeft(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
+      }
+    }
+
+    updateTimer()
+    const timer = setInterval(updateTimer, 1000)
+    
+    return () => clearInterval(timer)
+  }, [auctionInfo])
+
   const loadAuctionData = async () => {
     try {
+      // Load auction details first
+      const auctionRes = await axios.get(`${API_URL}/api/bids/auctions/${auctionId}`)
+      const auctionData = auctionRes.data.data
+      setAuctionInfo(auctionData)
+      
       // Load bid history
       const historyRes = await axios.get(`${API_URL}/api/bids/history/${auctionId}`)
-      if (historyRes.data.success) {
+      if (historyRes.data.success && historyRes.data.data.length > 0) {
         setBids(historyRes.data.data)
-        if (historyRes.data.data.length > 0) {
-          setCurrentHighest(Math.max(...historyRes.data.data.map((b: Bid) => b.amount)))
-        }
+        setCurrentHighest(Math.max(...historyRes.data.data.map((b: Bid) => b.amount)))
+      } else {
+        // No bids yet - use starting bid
+        setCurrentHighest(auctionData.starting_bid)
       }
 
       // Load statistics
@@ -106,12 +138,17 @@ export default function AuctionRoom() {
 
   const setupRealtimeChannel = async () => {
     try {
-      // Setup realtime channel on backend
-      await axios.post(`${API_URL}/api/bids/realtime/setup/${auctionId}`)
+      console.log('Setting up realtime channel for auction:', auctionId)
+      console.log('Your User ID:', userId)
 
       // Subscribe to realtime updates
       const channel = supabase
-        .channel(`auction:${auctionId}:bids`)
+        .channel(`auction-${auctionId}`, {
+          config: {
+            broadcast: { self: true },
+            presence: { key: userId }
+          }
+        })
         .on(
           'postgres_changes',
           {
@@ -121,25 +158,64 @@ export default function AuctionRoom() {
             filter: `auction_id=eq.${auctionId}`,
           },
           (payload) => {
-            console.log('New bid received:', payload.new)
+            console.log('🔥 NEW BID RECEIVED:', payload.new)
             const newBid = payload.new as Bid
             
-            setBids((prev) => [newBid, ...prev])
+            // Update bids list
+            setBids((prev) => {
+              // Check if bid already exists
+              if (prev.some(b => b.bid_id === newBid.bid_id)) {
+                return prev
+              }
+              return [newBid, ...prev]
+            })
+            
+            // Update current highest
             setCurrentHighest(newBid.amount)
             
             // Update stats
-            setStats((prev) => prev ? {
-              ...prev,
-              total_bids: prev.total_bids + 1,
-              highest_bid: newBid.amount,
-            } : null)
+            setStats((prev) => {
+              if (!prev) {
+                return {
+                  total_bids: 1,
+                  unique_bidders: 1,
+                  highest_bid: newBid.amount,
+                  average_bid: newBid.amount
+                }
+              }
+              
+              const newTotalBids = prev.total_bids + 1
+              const newAverage = ((prev.average_bid * prev.total_bids) + newBid.amount) / newTotalBids
+              
+              return {
+                ...prev,
+                total_bids: newTotalBids,
+                highest_bid: newBid.amount,
+                average_bid: newAverage
+              }
+            })
+
+            // Show notification if not own bid
+            if (newBid.bidder_id !== userId) {
+              setMessage({
+                type: 'error',
+                text: 'You have been outbid!'
+              })
+              setTimeout(() => setMessage(null), 3000)
+            }
           }
         )
-        .subscribe()
+        .subscribe((status) => {
+          console.log('Realtime subscription status:', status)
+          setRealtimeStatus(status)
+        })
 
       channelRef.current = channel
+
+      console.log('✅ Realtime channel setup complete')
     } catch (error) {
-      console.error('Error setting up realtime:', error)
+      console.error('❌ Error setting up realtime:', error)
+      setRealtimeStatus('error')
     }
   }
 
@@ -159,6 +235,8 @@ export default function AuctionRoom() {
     setMessage(null)
 
     try {
+      console.log('Placing bid with userId:', userId)
+      
       const response = await axios.post(`${API_URL}/api/bids/place`, {
         auction_id: auctionId,
         bidder_id: userId,
@@ -172,7 +250,7 @@ export default function AuctionRoom() {
         })
         setBidAmount('')
         
-        // Bid will be added via realtime subscription
+        // Bid will be added via realtime subscription automatically
       } else {
         setMessage({
           type: 'error',
@@ -203,11 +281,28 @@ export default function AuctionRoom() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">
-          Live Auction Room
+          {auctionInfo?.title || 'Live Auction Room'}
         </h1>
-        <p className="text-gray-600">
-          Auction ID: {auctionId}
-        </p>
+        <div className="flex items-center gap-4">
+          <p className="text-gray-600">
+            {auctionInfo?.description || `Auction ID: ${auctionId}`}
+          </p>
+          {/* Realtime Status Indicator */}
+          <div className="flex items-center gap-2 text-xs">
+            <div className={`w-2 h-2 rounded-full ${
+              realtimeStatus === 'joined' ? 'bg-green-500 animate-pulse' :
+              realtimeStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+              'bg-red-500'
+            }`}></div>
+            <span className="text-gray-500">
+              {realtimeStatus === 'joined' ? 'Connected' :
+               realtimeStatus === 'connecting' ? 'Connecting...' :
+               'Disconnected'}
+            </span>
+          </div>
+          {/* User ID Display (for debugging) */}
+          <span className="text-xs text-gray-400">ID: {userId.slice(0, 12)}...</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -215,7 +310,9 @@ export default function AuctionRoom() {
         <div className="lg:col-span-2 space-y-6">
           {/* Current Bid Display */}
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-gray-600 mb-2">Current Highest Bid</p>
+            <p className="text-gray-600 mb-2">
+              {bids.length === 0 ? 'Starting Bid' : 'Current Highest Bid'}
+            </p>
             <p className="text-5xl font-bold text-primary-600 mb-6">
               Nu. {currentHighest.toLocaleString()}
             </p>
@@ -275,17 +372,20 @@ export default function AuctionRoom() {
                 {bids.map((bid, index) => (
                   <div
                     key={bid.bid_id}
-                    className={`flex items-center justify-between p-3 rounded-lg ${
+                    className={`flex items-center justify-between p-3 rounded-lg transition-all ${
                       index === 0 
-                        ? 'bg-primary-50 border border-primary-200 animate-bid-success' 
+                        ? 'bg-primary-50 border border-primary-200' 
                         : 'bg-gray-50'
-                    }`}
+                    } ${bid.bidder_id === userId ? 'border-l-4 border-l-blue-500' : ''}`}
                   >
                     <div className="flex items-center gap-3">
                       <User className="w-5 h-5 text-gray-600" />
                       <div>
                         <p className="font-semibold text-gray-900">
                           Nu. {bid.amount.toLocaleString()}
+                          {bid.bidder_id === userId && (
+                            <span className="ml-2 text-xs text-blue-600">(You)</span>
+                          )}
                         </p>
                         <p className="text-sm text-gray-600">
                           {new Date(bid.bid_time).toLocaleTimeString()}
@@ -361,7 +461,7 @@ export default function AuctionRoom() {
               <li>• Minimum increment: Nu. 100</li>
               <li>• Bid must be higher than current highest</li>
               <li>• Real-time updates for all bidders</li>
-              <li>• Cannot outbid yourself</li>
+              <li>• Your bids are marked with (You)</li>
             </ul>
           </div>
         </div>
