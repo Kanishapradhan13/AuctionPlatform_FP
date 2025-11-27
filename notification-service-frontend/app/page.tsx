@@ -120,7 +120,7 @@ export default function NotificationDashboard() {
     }
   }
 
-  // Calculate stats from notifications
+  // Calculate stats from -notifications
   const stats = {
     total: notifications.length,
     sent: notifications.filter(n => n.status === 'sent').length,
