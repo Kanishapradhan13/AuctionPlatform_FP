@@ -1,4 +1,4 @@
-// File: /home/tandinzangmo/Desktop/AuctionPlatform_FP/notification-service-frontend/app/layout.tsx
+// File: /home/tandinzangmo/Desktop/FP/AuctionPlatform_FP/notification-service-frontend/app/layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
