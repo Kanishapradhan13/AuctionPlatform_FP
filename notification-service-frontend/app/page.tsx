@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import RealTimeNotificationFeed from '../src/components/RealTimeNotificationFeed'
 
 interface Notification {
   id: string
@@ -33,7 +34,6 @@ export default function NotificationDashboard() {
       
       console.log('Fetching notifications from backend...')
       
-      // Use direct backend URL - this is the key fix!
       const response = await fetch('http://localhost:3004/api/notifications/logs')
       
       console.log('Response status:', response.status)
@@ -74,6 +74,8 @@ export default function NotificationDashboard() {
       case 'BID_PLACED': return 'bg-blue-100 text-blue-800'
       case 'OUTBID': return 'bg-orange-100 text-orange-800'
       case 'AUCTION_WON': return 'bg-green-100 text-green-800'
+      case 'INVALID_EVENT': return 'bg-red-100 text-red-800'
+      case 'TEST_EVENT': return 'bg-purple-100 text-purple-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -93,11 +95,14 @@ export default function NotificationDashboard() {
       console.log('Sending test notification...')
       const response = await fetch('http://localhost:3004/api/notifications/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Service-Secret': 'notification_service_secret_2024'
+        },
         body: JSON.stringify({
           eventType: 'BID_PLACED',
           userEmail: 'admin-test@example.com',
-          userId: 'admin-user-123',
+          userId: 'admin-dashboard',
           auctionId: 'test-auction-' + Date.now(),
           auctionTitle: 'Test Property ' + new Date().toLocaleTimeString(),
           additionalData: { bidAmount: Math.floor(Math.random() * 100000) + 50000 }
@@ -108,9 +113,9 @@ export default function NotificationDashboard() {
       console.log('Send result:', result)
       
       if (result.success) {
-        // Refresh the list after a short delay
+        // Refresh the list after a short delay to see the new notification
         setTimeout(fetchNotifications, 1000)
-        alert('Test notification sent successfully!')
+        alert('Test notification sent successfully! Check the real-time feed above.')
       } else {
         alert('Failed to send test notification: ' + result.message)
       }
@@ -120,7 +125,7 @@ export default function NotificationDashboard() {
     }
   }
 
-  // Calculate stats from -notifications
+  // Calculate stats from notifications
   const stats = {
     total: notifications.length,
     sent: notifications.filter(n => n.status === 'sent').length,
@@ -152,8 +157,13 @@ export default function NotificationDashboard() {
             Real-time monitoring of auction notifications
           </p>
           <p className="text-sm text-gray-500 mt-1">
-            Backend: http://localhost:3004
+            Backend: http://localhost:3004 | Frontend: http://localhost:4004
           </p>
+        </div>
+
+        {/* ✅ REAL-TIME NOTIFICATION FEED */}
+        <div className="mb-8">
+          <RealTimeNotificationFeed userId="admin-dashboard" />
         </div>
 
         {/* Stats Cards */}
@@ -294,15 +304,16 @@ export default function NotificationDashboard() {
         {/* Connection Status */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="font-semibold text-blue-800 mb-2">
-            Backend Connection Status: {error ? 'Disconnected' : 'Connected'}
+            Backend Connection Status: {error ? '❌ Disconnected' : '✅ Connected'}
           </h3>
           <div className="text-sm text-blue-700">
-            <div>Backend URL: http://localhost:3004</div>
-            <div>Notifications loaded: {notifications.length}</div>
-            <div>Last updated: {new Date().toLocaleString()}</div>
+            <div><strong>Backend URL:</strong> http://localhost:3004</div>
+            <div><strong>WebSocket:</strong> ws://localhost:3004/ws</div>
+            <div><strong>Notifications loaded:</strong> {notifications.length}</div>
+            <div><strong>Last updated:</strong> {new Date().toLocaleString()}</div>
             {!error && notifications.length > 0 && (
-              <div className="mt-2 text-green-600">
-                <strong>Success!</strong> Your dashboard is connected and showing {notifications.length} notifications from the database.
+              <div className="mt-2 text-green-600 font-medium">
+                ✅ Success! Your dashboard is connected and showing {notifications.length} notifications from the database.
               </div>
             )}
           </div>
