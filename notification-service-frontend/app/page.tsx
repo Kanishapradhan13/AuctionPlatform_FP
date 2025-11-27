@@ -31,28 +31,28 @@ export default function NotificationDashboard() {
       setRefreshing(true)
       setError(null)
       
-      console.log('🔄 Fetching notifications from backend...')
+      console.log('Fetching notifications from backend...')
       
       // Use direct backend URL - this is the key fix!
       const response = await fetch('http://localhost:3004/api/notifications/logs')
       
-      console.log('📨 Response status:', response.status)
+      console.log('Response status:', response.status)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const result = await response.json()
-      console.log('📊 Received data:', result)
+      console.log('Received data:', result)
       
       if (result.success) {
         setNotifications(result.data)
-        console.log(`✅ Loaded ${result.data.length} notifications`)
+        console.log(`Loaded ${result.data.length} notifications`)
       } else {
         setError(result.error || 'Failed to fetch notifications')
       }
     } catch (error) {
-      console.error('❌ Error fetching notifications:', error)
+      console.error('Error fetching notifications:', error)
       setError('Cannot connect to notification service. Make sure the backend is running on port 3004.')
     } finally {
       setLoading(false)
@@ -90,7 +90,7 @@ export default function NotificationDashboard() {
 
   const sendTestNotification = async () => {
     try {
-      console.log('📧 Sending test notification...')
+      console.log('Sending test notification...')
       const response = await fetch('http://localhost:3004/api/notifications/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,18 +105,18 @@ export default function NotificationDashboard() {
       })
 
       const result = await response.json()
-      console.log('📧 Send result:', result)
+      console.log('Send result:', result)
       
       if (result.success) {
         // Refresh the list after a short delay
         setTimeout(fetchNotifications, 1000)
-        alert('✅ Test notification sent successfully!')
+        alert('Test notification sent successfully!')
       } else {
-        alert('❌ Failed to send test notification: ' + result.message)
+        alert('Failed to send test notification: ' + result.message)
       }
     } catch (error) {
-      console.error('❌ Error sending test notification:', error)
-      alert('❌ Error sending test notification: Make sure backend is running on port 3004')
+      console.error('Error sending test notification:', error)
+      alert('Error sending test notification: Make sure backend is running on port 3004')
     }
   }
 
@@ -146,7 +146,7 @@ export default function NotificationDashboard() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            📧 Notification Dashboard
+            Notification Dashboard
           </h1>
           <p className="text-lg text-gray-600">
             Real-time monitoring of auction notifications
@@ -205,13 +205,13 @@ export default function NotificationDashboard() {
                   disabled={refreshing}
                   className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50"
                 >
-                  {refreshing ? '🔄 Refreshing...' : '🔄 Refresh'}
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
                 </button>
                 <button 
                   onClick={sendTestNotification}
                   className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors"
                 >
-                  📧 Send Test
+                  Send Test
                 </button>
               </div>
             </div>
@@ -294,7 +294,7 @@ export default function NotificationDashboard() {
         {/* Connection Status */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="font-semibold text-blue-800 mb-2">
-            Backend Connection Status: {error ? '❌ Disconnected' : '✅ Connected'}
+            Backend Connection Status: {error ? 'Disconnected' : 'Connected'}
           </h3>
           <div className="text-sm text-blue-700">
             <div>Backend URL: http://localhost:3004</div>
@@ -302,7 +302,7 @@ export default function NotificationDashboard() {
             <div>Last updated: {new Date().toLocaleString()}</div>
             {!error && notifications.length > 0 && (
               <div className="mt-2 text-green-600">
-                <strong>✅ Success!</strong> Your dashboard is connected and showing {notifications.length} notifications from the database.
+                <strong>Success!</strong> Your dashboard is connected and showing {notifications.length} notifications from the database.
               </div>
             )}
           </div>

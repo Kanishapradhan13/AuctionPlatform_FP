@@ -12,12 +12,12 @@ try {
   if (apiKey && !apiKey.includes('your_resend_api_key') && apiKey.length > 20) {
     resend = new Resend(apiKey);
     emailEnabled = true;
-    console.log('✅ Resend email service ENABLED');
+    console.log('Resend email service ENABLED');
   } else {
-    console.log('🔄 Resend email service in MOCK mode (no valid API key)');
+    console.log('Resend email service in MOCK mode (no valid API key)');
   }
 } catch (error) {
-  console.log('⚠️ Resend initialization failed, using MOCK mode:', error.message);
+  console.log('Resend initialization failed, using MOCK mode:', error.message);
 }
 
 // Helper function to format numbers with commas
@@ -99,7 +99,7 @@ class EmailService {
           text: text,
         });
 
-        console.log('✅ REAL email sent via Resend');
+        console.log('REAL email sent via Resend');
         
         return {
           success: true,
@@ -109,7 +109,7 @@ class EmailService {
         };
       } else {
         // MOCK email (no API key or Resend not available)
-        console.log('🔄 MOCK email sent (no Resend API key)');
+        console.log('MOCK email sent (no Resend API key)');
         
         return {
           success: true,
@@ -119,10 +119,10 @@ class EmailService {
         };
       }
     } catch (error) {
-      console.error('❌ Email sending failed:', error.message);
+      console.error('Email sending failed:', error.message);
       
       // Fallback to mock mode
-      console.log('🔄 Falling back to MOCK email');
+      console.log('Falling back to MOCK email');
       return {
         success: true,
         data: { id: 'mock_fallback_' + Date.now() },
@@ -139,7 +139,7 @@ class EmailService {
         subject: `Bid Confirmed - ${data.auctionTitle}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #2c5aa0;">🇧🇹 Bhutan Auction Platform</h2>
+            <h2 style="color: #2c5aa0;">Bhutan Auction Platform</h2>
             <h3>Bid Confirmation</h3>
             <p>Your bid has been successfully placed!</p>
             <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
@@ -155,7 +155,7 @@ class EmailService {
         subject: `You've Been Outbid - ${data.auctionTitle}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #d9534f;">🇧🇹 Bhutan Auction Platform</h2>
+            <h2 style="color: #d9534f;">Bhutan Auction Platform</h2>
             <h3>You've Been Outbid!</h3>
             <p>Someone placed a higher bid on your auction.</p>
             <div style="background: #fff5f5; padding: 15px; border-radius: 5px;">
@@ -171,7 +171,7 @@ class EmailService {
         subject: `Congratulations! You Won - ${data.auctionTitle}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #5cb85c;">🇧🇹 Bhutan Auction Platform</h2>
+            <h2 style="color: #5cb85c;">Bhutan Auction Platform</h2>
             <h3>Congratulations! You Won!</h3>
             <p>You have won the auction!</p>
             <div style="background: #f5fff5; padding: 15px; border-radius: 5px;">
@@ -193,7 +193,7 @@ class EmailService {
     let loggedNotification;
 
     try {
-      console.log('📨 Processing notification:', notificationData.eventType);
+      console.log('Processing notification:', notificationData.eventType);
 
       // 1. Log the notification in database
       loggedNotification = await this.logNotification({
@@ -240,7 +240,7 @@ class EmailService {
       }
 
     } catch (error) {
-      console.error('💥 Notification processing failed:', error.message);
+      console.error('Notification processing failed:', error.message);
 
       if (loggedNotification) {
         await this.updateNotificationStatus(loggedNotification.id, 'failed', error.message);

@@ -27,12 +27,12 @@ async function testConnection() {
       .select('count', { count: 'exact', head: true });
     
     if (error) {
-      console.log('⚠️  Notifications table might not exist yet. Run database-setup.sql');
+      console.log('Notifications table might not exist yet. Run database-setup.sql');
     } else {
-      console.log('✅ Successfully connected to Supabase');
+      console.log('Successfully connected to Supabase');
     }
   } catch (err) {
-    console.log('⚠️  Supabase connection test:', err.message);
+    console.log('Supabase connection test:', err.message);
   }
 }
 
