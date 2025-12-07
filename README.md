@@ -2,18 +2,18 @@
 
 A complete **User Management System** implementing the User Context from the domain design. This platform handles user registration, authentication, profile management, and seller verification workflows.
 
-## 🎯 Project Scope
+## Project Scope
 
 This project focuses **exclusively on the User Context** as defined in the domain design:
-- ✅ User registration and authentication
-- ✅ User profile management  
-- ✅ Role-based access control (BUYER, SELLER, ADMIN)
-- ✅ Seller verification workflow
-- ✅ Account verification and management
+-  User registration and authentication
+-  User profile management  
+-  Role-based access control (BUYER, SELLER, ADMIN)
+-  Seller verification workflow
+-  Account verification and management
 
 **Note:** Other contexts (Auction, Bidding, Notification) are intentionally **not included** in this implementation.
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 User Platform Architecture
@@ -29,51 +29,28 @@ User Platform Architecture
                            └─────────────────────┘
 ```
 
-## 📁 Project Structure
-
-```
-auction-platform/
-├── frontend/                    # Next.js frontend (User Context only)
-│   ├── src/app/
-│   │   ├── page.tsx            # Landing page
-│   │   ├── dashboard/          # User dashboard
-│   │   ├── sign-in/           # Authentication pages
-│   │   └── sign-up/
-│   └── .env.local             # Frontend configuration
-├── services/
-│   └── user-service/          # User management service
-│       ├── src/
-│       │   └── server.ts      # Complete User Context API
-│       ├── database/
-│       │   └── schema.sql     # Database schema
-│       └── README.md          # Service documentation
-├── infrastructure/            # Empty (for future use)
-├── tests/                    # Empty (for future use)
-└── docs/                     # Empty (for future use)
-```
-
-## 🚀 Features Implemented
+## Features Implemented
 
 ### User Entity (from Domain Design)
-- ✅ `userId: String` - Unique user identifier
-- ✅ `email: String` - User email address
-- ✅ `name: String` - User full name
-- ✅ `role: UserRole` - BUYER, SELLER, ADMIN roles
-- ✅ `isVerified: Boolean` - Account verification status
+-  `userId: String` - Unique user identifier
+-  `email: String` - User email address
+-  `name: String` - User full name
+-  `role: UserRole` - BUYER, SELLER, ADMIN roles
+-  `isVerified: Boolean` - Account verification status
 
 ### User Methods (from Domain Design)
-- ✅ `register()` - User registration endpoint
-- ✅ `login()` - User login and authentication
-- ✅ `verifyAccount()` - Email/account verification
+-  `register()` - User registration endpoint
+-  `login()` - User login and authentication
+-  `verifyAccount()` - Email/account verification
 
 ### Additional Features
-- ✅ **Profile Management** - Complete CRUD operations
-- ✅ **Seller Verification** - Business verification workflow
-- ✅ **Role-Based Permissions** - Access control system
-- ✅ **Admin Operations** - Seller approval system
-- ✅ **Caching** - Redis integration for performance
+-  **Profile Management** - Complete CRUD operations
+-  **Seller Verification** - Business verification workflow
+-  **Role-Based Permissions** - Access control system
+-  **Admin Operations** - Seller approval system
+-  **Caching** - Redis integration for performance
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Frontend
 - **Next.js 15.5.4** - React framework with App Router
@@ -88,7 +65,7 @@ auction-platform/
 - **Redis** - Caching and session management
 - **Clerk** - Authentication integration
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js 18+
@@ -147,7 +124,7 @@ npm run dev
 - **User Service API:** http://localhost:3001 (same port)
 - **Health Check:** http://localhost:3001/health
 
-## 📋 API Endpoints
+## PI Endpoints
 
 ### Authentication & Registration
 - `POST /api/users/register` - Register new user
@@ -167,7 +144,7 @@ npm run dev
 ### Admin Operations
 - `POST /api/admin/approve-seller/:userId` - Approve/reject seller
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Health check
@@ -178,27 +155,3 @@ curl -X POST http://localhost:3001/api/users/register \
   -H "Content-Type: application/json" \
   -d '{"clerkId":"clerk_123","email":"user@example.com","firstName":"John","lastName":"Doe"}'
 ```
-
-## 📚 What's NOT Included
-
-This project intentionally **excludes** the following contexts from the domain design:
-- ❌ **Auction Context** - Auction creation and management
-- ❌ **Bidding Context** - Bidding system and bid management  
-- ❌ **Notification Context** - Notification system
-- ❌ **Payment Context** - Payment processing
-
-These are separate contexts that should be implemented as independent services.
-
-## ✅ Status
-
-**User Context: COMPLETE** ✅
-
-The User Context implementation is **production-ready** and includes all features defined in the domain design. The system is ready for integration with other contexts or can be used independently as a user management platform.
-
-## 🔄 Future Integration
-
-This User Service is designed to integrate with other context services:
-- Provides user validation APIs for other services
-- Implements proper authentication middleware
-- Supports microservices architecture
-- Ready for service-to-service communication
